@@ -8,13 +8,14 @@ import { cn } from '@/lib/utils'
 import { TailwindIndicator } from '@/components/tailwind-indicator'
 import { Providers } from '@/components/providers'
 import { Header } from '@/components/header'
+import { NavMenu } from '@/components/nav-menu'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Next.js AI Chatbot',
-    template: `%s - Next.js AI Chatbot`
+    default: 'Daily Report System',
+    template: `%s - Daily Report System`
   },
-  description: 'An AI-powered chatbot template built with Next.js and Vercel.',
+  description: 'A daily reporting and chat system built with Next.js and Supabase.',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: 'white' },
     { media: '(prefers-color-scheme: dark)', color: 'black' }
@@ -41,15 +42,17 @@ export default function RootLayout({ children }: RootLayoutProps) {
           fontMono.variable
         )}
       >
-        <Toaster />
         <Providers attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex min-h-screen flex-col">
-            {/* @ts-ignore */}
+          <div className="flex flex-col min-h-screen">
             <Header />
-            <main className="flex flex-1 flex-col bg-muted/50">{children}</main>
+            <NavMenu />
+            <main className="flex flex-col flex-1 bg-muted/50">
+              {children}
+            </main>
           </div>
           <TailwindIndicator />
         </Providers>
+        <Toaster />
       </body>
     </html>
   )

@@ -26,13 +26,16 @@ function getUserInitials(name: string) {
 
 export function UserMenu({ user }: UserMenuProps) {
   const router = useRouter()
-
-  // Create a Supabase client configured to use cookies
   const supabase = createClientComponentClient()
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    router.refresh()
+    try {
+      await supabase.auth.signOut()
+      router.refresh()
+      router.push('/sign-in')
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
   }
 
   return (

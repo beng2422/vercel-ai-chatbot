@@ -1,23 +1,20 @@
-import { type UseChatHelpers } from 'ai/react'
+'use client'
 
+import { type UseChatHelpers } from 'ai/react'
 import { Button } from '@/components/ui/button'
 import { PromptForm } from '@/components/prompt-form'
 import { ButtonScrollToBottom } from '@/components/button-scroll-to-bottom'
 import { IconRefresh, IconStop } from '@/components/ui/icons'
 import { FooterText } from '@/components/footer'
+import { Message } from '@/components/chat-message'
 
 export interface ChatPanelProps
   extends Pick<
     UseChatHelpers,
-    | 'append'
-    | 'isLoading'
-    | 'reload'
-    | 'messages'
-    | 'stop'
-    | 'input'
-    | 'setInput'
+    'append' | 'isLoading' | 'reload' | 'stop' | 'input' | 'setInput'
   > {
   id?: string
+  messages: Message[]
 }
 
 export function ChatPanel({

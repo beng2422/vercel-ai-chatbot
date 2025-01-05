@@ -9,11 +9,8 @@ export async function middleware(req: NextRequest) {
   // Create a Supabase client configured to use cookies
   const supabase = createMiddlewareClient({ req, res })
 
-  // Refresh session if expired - required for Server Components
-  // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-session-with-middleware
-  const {
-    data: { session }
-  } = await supabase.auth.getSession()
+  // Refresh session if expired
+  const { data: { session }, error } = await supabase.auth.getSession()
 
   // OPTIONAL: this forces users to be logged in to use the chatbot.
   // If you want to allow anonymous users, simply remove the check below.

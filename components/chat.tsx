@@ -1,7 +1,6 @@
 'use client'
 
-import { useChat, type Message } from 'ai/react'
-
+import { useChat } from 'ai/react'
 import { cn } from '@/lib/utils'
 import { ChatList } from '@/components/chat-list'
 import { ChatPanel } from '@/components/chat-panel'
@@ -20,8 +19,11 @@ import { useState } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { toast } from 'react-hot-toast'
+import { Message } from './chat-message'
+import { nanoid } from '@/lib/utils'
 
 const IS_PREVIEW = process.env.VERCEL_ENV === 'preview'
+
 export interface ChatProps extends React.ComponentProps<'div'> {
   initialMessages?: Message[]
   id?: string
@@ -34,9 +36,18 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
   )
   const [previewTokenDialog, setPreviewTokenDialog] = useState(IS_PREVIEW)
   const [previewTokenInput, setPreviewTokenInput] = useState(previewToken ?? '')
-  const { messages, append, reload, stop, isLoading, input, setInput } =
+  
+  // Convert our Message type to AI Message type for initial messages
+  const convertedInitialMessages = initialMessages?.map(msg => ({
+    id: msg.id ?? nanoid(),
+    content: msg.content,
+    role: msg.role,
+    createdAt: msg.createdAt ?? new Date()
+  }))
+
+  const { messages: aiMessages, append, reload, stop, isLoading, input, setInput } =
     useChat({
-      initialMessages,
+      initialMessages: convertedInitialMessages,
       id,
       body: {
         id,
@@ -48,6 +59,15 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
         }
       }
     })
+
+  // Convert AI messages back to our custom Message type
+  const messages: Message[] = aiMessages.map(msg => ({
+    id: msg.id,
+    content: msg.content,
+    role: msg.role === 'function' ? 'system' : msg.role,
+    createdAt: new Date()
+  }))
+
   return (
     <>
       <div className={cn('pb-[200px] pt-4 md:pt-10', className)}>

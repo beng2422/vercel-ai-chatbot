@@ -1,6 +1,4 @@
-import { Message } from 'ai'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
+'use client'
 
 import { cn } from '@/lib/utils'
 import { CodeBlock } from '@/components/ui/codeblock'
@@ -8,15 +6,25 @@ import { MemoizedReactMarkdown } from '@/components/markdown'
 import { IconOpenAI, IconUser } from '@/components/ui/icons'
 import { ChatMessageActions } from '@/components/chat-message-actions'
 
-export interface ChatMessageProps {
-  message: Message
+export interface Message {
+  id?: string
+  content: string
+  role: "system" | "user" | "assistant"
+  createdAt?: Date
 }
 
-export function ChatMessage({ message, ...props }: ChatMessageProps) {
+export interface ChatMessageProps {
+  message: Message
+  className?: string
+}
+
+export function ChatMessage({ message, className }: ChatMessageProps) {
   return (
     <div
-      className={cn('group relative mb-4 flex items-start md:-ml-12')}
-      {...props}
+      className={cn(
+        'group relative mb-4 flex items-start md:-ml-12',
+        className
+      )}
     >
       <div
         className={cn(
@@ -31,7 +39,7 @@ export function ChatMessage({ message, ...props }: ChatMessageProps) {
       <div className="ml-4 flex-1 space-y-2 overflow-hidden px-1">
         <MemoizedReactMarkdown
           className="prose break-words dark:prose-invert prose-p:leading-relaxed prose-pre:p-0"
-          remarkPlugins={[remarkGfm, remarkMath]}
+          remarkPlugins={[]}
           components={{
             p({ children }) {
               return <p className="mb-2 last:mb-0">{children}</p>

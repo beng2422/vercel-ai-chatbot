@@ -1,10 +1,15 @@
-import { type Message } from 'ai'
+'use client'
 
 import { Separator } from '@/components/ui/separator'
 import { ChatMessage } from '@/components/chat-message'
 
 export interface ChatList {
-  messages: Message[]
+  messages: {
+    id?: string
+    content: string
+    role: "system" | "user" | "assistant"
+    createdAt?: Date
+  }[]
 }
 
 export function ChatList({ messages }: ChatList) {
