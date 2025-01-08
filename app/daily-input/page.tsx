@@ -8,6 +8,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { WeekSlider } from '@/app/components/week-slider'
+import { MotivationMessage } from '@/components/motivation-message'
 
 interface DailyReport {
   date: string
@@ -188,79 +189,81 @@ export default function DailyInputPage() {
   return (
     <div className="flex min-h-[calc(100vh-theme(spacing.16))] flex-col items-center justify-start py-10 bg-gradient-to-b from-blue-50 to-white">
       <div className="w-full max-w-3xl px-4">
-        <WeekSlider 
-          selectedDate={selectedDate}
-          onDateSelect={setSelectedDate}
-        />
-        <div className="rounded-lg border bg-white p-8 shadow-lg">
-          <div className="mb-6 flex items-center justify-between border-b border-blue-100 pb-4">
-            <h1 className="text-2xl font-semibold text-blue-900">Daily Input</h1>
-            <span className="text-blue-600">{currentDate}</span>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="food" className="text-blue-800">Food & Nutrition</Label>
-              <Textarea
-                id="food"
-                value={formData.food}
-                onChange={e => setFormData({...formData, food: e.target.value})}
-                placeholder="What did you eat today? Include meals, snacks, and drinks..."
-                className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                required
-              />
+        <div className="mt-6">
+          <WeekSlider 
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+          />
+          <div className="rounded-lg border bg-white p-8 shadow-lg">
+            <div className="mb-6 flex items-center justify-between border-b border-blue-100 pb-4">
+              <h1 className="text-2xl font-semibold text-blue-900">Daily Input</h1>
+              <span className="text-blue-600">{currentDate}</span>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="activity" className="text-blue-800">Physical Activity</Label>
-              <Textarea
-                id="activity"
-                value={formData.activity}
-                onChange={e => setFormData({...formData, activity: e.target.value})}
-                placeholder="What activities did you do? Include exercise, walking, sports..."
-                className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="other_notes" className="text-blue-800">Other Notes</Label>
-              <Textarea
-                id="other_notes"
-                value={formData.other_notes}
-                onChange={e => setFormData({...formData, other_notes: e.target.value})}
-                placeholder="Mental health, special events, sleep quality..."
-                className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                required
-              />
-            </div>
-
-            <div className="flex space-x-4">
-              <Button 
-                type="button" 
-                variant="outline"
-                onClick={analyzeCalories}
-                disabled={isAnalyzing}
-                className="border-blue-500 text-blue-500 hover:bg-blue-50"
-              >
-                {isAnalyzing ? 'Analyzing...' : 'Analyze Calories'}
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {isLoading ? 'Submitting...' : 'Submit Report'}
-              </Button>
-            </div>
-
-            {analysisResult && (
-              <div className="mt-4 p-4 border border-blue-200 rounded-md bg-blue-50 text-blue-800">
-                <h2 className="text-lg font-medium">Calorie Analysis Result</h2>
-                <pre className="whitespace-pre-wrap">{analysisResult}</pre>
+            
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="food" className="text-blue-800">Food & Nutrition</Label>
+                <Textarea
+                  id="food"
+                  value={formData.food}
+                  onChange={e => setFormData({...formData, food: e.target.value})}
+                  placeholder="What did you eat today? Include meals, snacks, and drinks..."
+                  className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  required
+                />
               </div>
-            )}
-          </form>
+
+              <div className="space-y-2">
+                <Label htmlFor="activity" className="text-blue-800">Physical Activity</Label>
+                <Textarea
+                  id="activity"
+                  value={formData.activity}
+                  onChange={e => setFormData({...formData, activity: e.target.value})}
+                  placeholder="What activities did you do? Include exercise, walking, sports..."
+                  className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="other_notes" className="text-blue-800">Other Notes</Label>
+                <Textarea
+                  id="other_notes"
+                  value={formData.other_notes}
+                  onChange={e => setFormData({...formData, other_notes: e.target.value})}
+                  placeholder="Mental health, special events, sleep quality..."
+                  className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div className="flex space-x-4">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={analyzeCalories}
+                  disabled={isAnalyzing}
+                  className="border-blue-500 text-blue-500 hover:bg-blue-50"
+                >
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Calories'}
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isLoading ? 'Submitting...' : 'Submit Report'}
+                </Button>
+              </div>
+
+              {analysisResult && (
+                <div className="mt-4 p-4 border border-blue-200 rounded-md bg-blue-50 text-blue-800">
+                  <h2 className="text-lg font-medium">Calorie Analysis Result</h2>
+                  <pre className="whitespace-pre-wrap">{analysisResult}</pre>
+                </div>
+              )}
+            </form>
+          </div>
         </div>
       </div>
     </div>
