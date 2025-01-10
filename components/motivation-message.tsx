@@ -24,48 +24,56 @@ export function MotivationMessage({ dailyInfo }: MotivationProps) {
 
   const generateMotivation = async () => {
     try {
+      const today = new Date()
+      const formattedDate = today.toISOString().split('T')[0]
+      
       // First try to fetch today's motivation if it exists
-      const today = new Date().toISOString().split('T')[0]
-      const { data: existingMotivation } = await supabase
+      const { data: existingMotivations, error: fetchError } = await supabase
         .from('daily_motivations')
         .select('message')
-        .eq('date', today)
-        .single()
+        .eq('date', formattedDate)
+        .order('created_at', { ascending: false })
+        .limit(1)
 
-      if (existingMotivation) {
-        setMessage(existingMotivation.message)
+      if (fetchError) {
+        console.error('Error fetching motivation:', fetchError)
+      } else if (existingMotivations && existingMotivations.length > 0) {
+        setMessage(existingMotivations[0].message)
         setIsLoading(false)
         return
       }
 
-      // If no motivation exists, generate a new one
-      const systemPrompt = `You are a supportive health coach. Based on the user's daily activities, 
-      provide a short, encouraging message (max 2 sentences). Be specific about their activities when possible.
-      Keep the tone positive and motivating.`
+      // If no motivation exists, generate a new one using the API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: dailyInfo ? `
+            Today's activities:
+            Food: ${dailyInfo.food}
+            Exercise: ${dailyInfo.activity}
+            Notes: ${dailyInfo.other_notes}
+          ` : 'New day starting',
+          type: 'motivate'
+        })
+      })
 
-      const userPrompt = dailyInfo ? `
-        Today's activities:
-        Food: ${dailyInfo.food}
-        Exercise: ${dailyInfo.activity}
-        Notes: ${dailyInfo.other_notes}
-      ` : 'New day starting'
+      if (!response.ok) throw new Error('Failed to generate motivation')
+      
+      const data = await response.json()
+      const motivation = data.analysis
 
-      // For now, using a mock response - in production, replace with actual API call
-      const mockMotivation = dailyInfo
-        ? "Great job staying active today! Your commitment to balanced nutrition and regular exercise is really showing."
-        : "Welcome back! Ready to make today another step towards your health goals?"
-
-      // Save the motivation to Supabase
+      // Save the motivation to Supabase (without unique constraint)
       const { error } = await supabase
         .from('daily_motivations')
         .insert({
-          date: today,
-          message: mockMotivation,
+          date: formattedDate,
+          message: motivation,
           created_at: new Date().toISOString()
         })
 
       if (error) throw error
-      setMessage(mockMotivation)
+      setMessage(motivation)
 
     } catch (error) {
       console.error('Error generating motivation:', error)

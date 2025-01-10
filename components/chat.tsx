@@ -49,6 +49,7 @@ export function Chat({ id, initialMessages, className }: ChatProps) {
     useChat({
       initialMessages: convertedInitialMessages,
       id,
+      api: '/api/coach',
       body: {
         id,
         previewToken

@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { MotivationMessage } from '@/components/motivation-message'
+import { DailyMessage } from '@/components/daily-message'
 import { ActivityGraph } from '@/components/activity-graph'
 import { TaskDistributionChart } from '@/components/task-distribution-chart'
-
 export default function HomePage() {
   const [dailyInfo, setDailyInfo] = useState<{
     food: string;
@@ -41,7 +40,7 @@ export default function HomePage() {
     <div className="flex min-h-[calc(100vh-theme(spacing.16))] flex-col py-10">
       <div className="container mx-auto px-4">
         <div className="mb-8">
-          <MotivationMessage 
+          <DailyMessage 
             dailyInfo={dailyInfo ? {
               food: dailyInfo.food ? dailyInfo.food : '',
               activity: dailyInfo.activity ? dailyInfo.activity : '',

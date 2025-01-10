@@ -8,33 +8,34 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { WeekSlider } from '@/app/components/week-slider'
-import { MotivationMessage } from '@/components/motivation-message'
 
 interface DailyReport {
   date: string
-  food: string
-  activity: string
-  other: string
+  journal: string
   llm_analysis?: string
+  nutrition_info?: {
+    calories: number
+    protein: number
+    carbs: number
+    fats: number
+  }
   user_id: string
   created_at?: string
-}
-interface Nutrition {
-  calories: number
-  protein: number
-  carbs: number
-  fats: number
 }
 
 export default function DailyInputPage() {
   const router = useRouter()
   const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [getNutrition, setGetNutrition] = useState<Nutrition | null>(null)
-  const [analysisResult, setAnalysisResult] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [existingReport, setExistingReport] = useState<DailyReport | null>(null)
+  const [journalEntry, setJournalEntry] = useState('')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState('')
+  const [nutritionInfo, setNutritionInfo] = useState<DailyReport['nutrition_info']>()
+  const [userProfile, setUserProfile] = useState('')
+  const [conversation, setConversation] = useState<{ role: string, content: string }[]>([])
+  const [newMessage, setNewMessage] = useState('')
 
   const currentDate = selectedDate.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -43,13 +44,6 @@ export default function DailyInputPage() {
     day: 'numeric'
   })
 
-  const [formData, setFormData] = useState({
-    food: '',
-    activity: '',
-    other_notes: ''
-  })
-
-  // Fetch existing report when date changes
   useEffect(() => {
     const fetchDailyReport = async () => {
       try {
@@ -63,29 +57,12 @@ export default function DailyInputPage() {
           .eq('date', selectedDate.toISOString().split('T')[0])
           .single()
 
-        if (error) {
-          if (error.code !== 'PGRST116') { // PGRST116 is the error code for no rows returned
-            console.error('Error fetching report:', error)
-          }
-          // Clear form data if no existing report
-          setFormData({
-            food: '',
-            activity: '',
-            other_notes: ''
-          })
-          setAnalysisResult(null)
-          setExistingReport(null)
-          return
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching report:', error)
         }
-
-        // Populate form with existing data
-        setFormData({
-          food: data.food || '',
-          activity: data.activity || '',
-          other_notes: data.other || ''
-        })
-        setAnalysisResult(data.llm_analysis || null)
-        setExistingReport(data)
+        
+        setJournalEntry(data?.journal || '')
+        setExistingReport(data || null)
       } catch (error) {
         console.error('Error:', error)
         toast.error('Failed to fetch daily report')
@@ -94,6 +71,61 @@ export default function DailyInputPage() {
 
     fetchDailyReport()
   }, [selectedDate, supabase])
+
+  useEffect(() => {
+    fetchUserProfile()
+    fetchExistingReport()
+  }, [selectedDate])
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setUserProfile(user.user_metadata.user_current_profile || '')
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+    }
+  }
+
+  const fetchExistingReport = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from('daily_info')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', selectedDate.toISOString().split('T')[0])
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching report:', error)
+      }
+      
+      if (data) {
+        setExistingReport(data)
+        setJournalEntry(data.journal || '')
+        setAnalysisResult(data.llm_analysis || '')
+        setNutritionInfo(data.nutrition_info || null)
+        if (data.llm_analysis) {
+          setConversation([
+            { role: 'system', content: 'Analysis complete. You can ask questions about the analysis or request adjustments to the nutrition estimates.' },
+            { role: 'assistant', content: data.llm_analysis }
+          ])
+        }
+      } else {
+        setExistingReport(null)
+        setJournalEntry('')
+        setAnalysisResult('')
+        setNutritionInfo(undefined)
+        setConversation([])
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Failed to fetch daily report')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,18 +142,13 @@ export default function DailyInputPage() {
 
       const reportData = {
         date: selectedDate.toISOString().split('T')[0],
-        food: formData.food,
-        activity: formData.activity,
-        other: formData.other_notes,
+        journal: journalEntry,
         user_id: user.id,
-        llm_analysis: analysisResult,
-        created_at: new Date().toISOString(),
-        nutrition_info: getNutrition
+        created_at: new Date().toISOString()
       }
 
       let error
       if (existingReport) {
-        // Update existing report
         const { error: updateError } = await supabase
           .from('daily_info')
           .update(reportData)
@@ -129,7 +156,6 @@ export default function DailyInputPage() {
           .eq('date', selectedDate.toISOString().split('T')[0])
         error = updateError
       } else {
-        // Insert new report
         const { error: insertError } = await supabase
           .from('daily_info')
           .insert(reportData)
@@ -138,51 +164,103 @@ export default function DailyInputPage() {
 
       if (error) throw error
 
-      toast.success(existingReport ? 'Report updated successfully!' : 'Daily report submitted successfully!')
-      router.refresh()
+      toast.success(existingReport ? 'Journal updated!' : 'Journal entry saved!')
       router.push('/')
     } catch (error) {
       console.error('Error:', error)
-      toast.error('Failed to submit daily report')
+      toast.error('Failed to save journal entry')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const analyzeCalories = async () => {
+  const analyzeEntry = async () => {
+    if (!journalEntry.trim()) {
+      toast.error('Please write your journal entry first')
+      return
+    }
+
     setIsAnalyzing(true)
     try {
-      const systemPrompt = `You are a nutritionist and fitness expert. Analyze the following daily log and provide:
-      1. Estimated total calories consumed
-      2. Brief breakdown of major nutrients
-      3. Calories burned from activities
-      4. Net caloric balance
-      Please format your response in a clear, concise way.`
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: journalEntry,
+          type: 'analyze',
+          userProfile: userProfile
+        })
+      })
 
-      const userPrompt = `
-      Food consumed: ${formData.food}
-      Activities: ${formData.activity}
-      Additional notes: ${formData.other_notes}
-      `
+      if (!response.ok) throw new Error('Analysis failed')
+      
+      const data = await response.json()
+      const { analysis, nutrition } = data
 
-      const systemPromptNutrition = `You are a nutritionist.
-      Your job is to take in all of the below information and analyze the nutrition of the food and activity
-      You should output the total calories, protein, carbs, and fats
-      IT MUST BE A JSON OUTPUT LIKE THIS: {"calories": 2000, "protein": 100, "carbs": 100, "fats": 100, "activity_calories": 500}
-      IT HAS TO BE JSON AND ONLY JSON` + userPrompt
+      // Save to database
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { error: updateError } = await supabase
+          .from('daily_info')
+          .update({
+            llm_analysis: analysis,
+            nutrition_info: nutrition
+          })
+          .eq('user_id', user.id)
+          .eq('date', selectedDate.toISOString().split('T')[0])
 
-      const mockNutritionOutput =  {"calories": 2000, "protein": 100, "carbs": 100, "fats": 100, "activity_calories": 500}
-      setGetNutrition(mockNutritionOutput)
-      // Here you would make your API call to ChatGPT
-      // For now, we'll just show a mock response
-      const mockResponse = 'Estimated calories: 2000\nNutrients: Protein, Carbs, Fats\nCalories burned: 500\nNet balance: 1500'
-      setAnalysisResult(mockResponse)
+        if (updateError) throw updateError
+      }
+
+      setAnalysisResult(analysis)
+      setNutritionInfo(nutrition)
+      setConversation([
+        { role: 'system', content: 'Analysis complete. You can ask questions about the analysis or request adjustments to the nutrition estimates.' },
+        { role: 'assistant', content: analysis }
+      ])
       toast.success('Analysis complete!')
-
     } catch (error) {
-      toast.error('Failed to analyze calories')
+      console.error('Error:', error)
+      toast.error('Failed to analyze entry')
     } finally {
       setIsAnalyzing(false)
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return
+
+    const updatedConversation = [
+      ...conversation,
+      { role: 'user', content: newMessage }
+    ]
+    setConversation(updatedConversation)
+    setNewMessage('')
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: newMessage,
+          type: 'conversation',
+          context: {
+            journal: journalEntry,
+            analysis: analysisResult,
+            nutrition: nutritionInfo,
+            userProfile: userProfile,
+            conversation: updatedConversation
+          }
+        })
+      })
+
+      if (!response.ok) throw new Error('Failed to get response')
+      const data = await response.json()
+
+      setConversation([...updatedConversation, { role: 'assistant', content: data.analysis }])
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Failed to send message')
     }
   }
 
@@ -196,76 +274,91 @@ export default function DailyInputPage() {
           />
           <div className="rounded-lg border bg-white p-8 shadow-lg">
             <div className="mb-6 flex items-center justify-between border-b border-blue-100 pb-4">
-              <h1 className="text-2xl font-semibold text-blue-900">Daily Input</h1>
+              <h1 className="text-2xl font-semibold text-blue-900">Daily Journal</h1>
               <span className="text-blue-600">{currentDate}</span>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="food" className="text-blue-800">Food & Nutrition</Label>
+                <Label htmlFor="journal" className="text-blue-800">Today's Entry</Label>
                 <Textarea
-                  id="food"
-                  value={formData.food}
-                  onChange={e => setFormData({...formData, food: e.target.value})}
-                  placeholder="What did you eat today? Include meals, snacks, and drinks..."
-                  className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="activity" className="text-blue-800">Physical Activity</Label>
-                <Textarea
-                  id="activity"
-                  value={formData.activity}
-                  onChange={e => setFormData({...formData, activity: e.target.value})}
-                  placeholder="What activities did you do? Include exercise, walking, sports..."
-                  className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="other_notes" className="text-blue-800">Other Notes</Label>
-                <Textarea
-                  id="other_notes"
-                  value={formData.other_notes}
-                  onChange={e => setFormData({...formData, other_notes: e.target.value})}
-                  placeholder="Mental health, special events, sleep quality..."
-                  className="min-h-[120px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                  id="journal"
+                  value={journalEntry}
+                  onChange={e => setJournalEntry(e.target.value)}
+                  placeholder="Write about your day... Include your meals, activities, thoughts, and feelings."
+                  className="min-h-[300px] border-blue-200 focus:border-blue-400 focus:ring-blue-400"
                   required
                 />
               </div>
 
               <div className="flex space-x-4">
                 <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={analyzeCalories}
-                  disabled={isAnalyzing}
-                  className="border-blue-500 text-blue-500 hover:bg-blue-50"
+                  type="button"
+                  onClick={analyzeEntry}
+                  disabled={isAnalyzing || !journalEntry}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Calories'}
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Entry'}
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={isLoading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {isLoading ? 'Submitting...' : 'Submit Report'}
+                  {isLoading ? 'Saving...' : 'Save Entry'}
                 </Button>
               </div>
-
-              {analysisResult && (
-                <div className="mt-4 p-4 border border-blue-200 rounded-md bg-blue-50 text-blue-800">
-                  <h2 className="text-lg font-medium">Calorie Analysis Result</h2>
-                  <pre className="whitespace-pre-wrap">{analysisResult}</pre>
-                </div>
-              )}
             </form>
           </div>
         </div>
       </div>
+
+      {analysisResult && (
+        <div className="mt-6 space-y-4 w-full max-w-3xl">
+          <div className="bg-green-50 p-4 rounded-lg">
+            <h2 className="font-semibold text-green-800 mb-2">Analysis</h2>
+            <p className="text-green-700 whitespace-pre-wrap">{analysisResult}</p>
+          </div>
+          {nutritionInfo && (
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h2 className="font-semibold text-blue-800 mb-2">Nutrition Estimates</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-blue-600">Calories: {nutritionInfo.calories}</p>
+                  <p className="text-blue-600">Protein: {nutritionInfo.protein}g</p>
+                </div>
+                <div>
+                  <p className="text-blue-600">Carbs: {nutritionInfo.carbs}g</p>
+                  <p className="text-blue-600">Fats: {nutritionInfo.fats}g</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-lg border bg-background p-4">
+            <h2 className="font-semibold mb-4">Conversation</h2>
+            <div className="space-y-4 mb-4">
+              {conversation.map((msg, i) => (
+                <div key={i} className={`p-2 rounded ${
+                  msg.role === 'user' ? 'bg-blue-50 ml-8' : 
+                  msg.role === 'assistant' ? 'bg-green-50 mr-8' : 'bg-gray-50'
+                }`}>
+                  {msg.content}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Textarea
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Ask a question about the analysis..."
+                className="flex-1"
+              />
+              <Button onClick={sendMessage}>Send</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

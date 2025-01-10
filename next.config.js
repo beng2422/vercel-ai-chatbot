@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-module.exports = {
+const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: true
@@ -10,6 +10,9 @@ module.exports = {
         protocol: 'https',
         hostname: '**.githubusercontent.com'
       }
-    ]
+    ],
+    domains: ['api.dicebear.com']
   }
 }
+
+module.exports = nextConfig
